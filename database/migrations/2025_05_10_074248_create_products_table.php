@@ -20,7 +20,7 @@ return new class extends Migration
             $table->unsignedBigInteger('category_id');
             $table->decimal('price', 10, 2);
             $table->unsignedInteger('stock')->default(0);
-            $table->string('image_url', 255)->nullable();
+            $table->string('image', 255)->nullable();
             $table->timestamps();
 
             $table->foreign('category_id')->references('id')->on('product_categories')->onUpdate('cascade')->onDelete('cascade');

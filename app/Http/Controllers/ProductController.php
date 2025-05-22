@@ -14,7 +14,7 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $products = Product::with('product_categories') // Eager load relasi category
+        $products = Product::with('category') // Eager load relasi category
             ->when($request->filled('q'), function ($query) use ($request) {
                 $query->where('name', 'like', '%' . $request->q . '%')
                     ->orWhere('description', 'like', '%' . $request->q . '%');
@@ -48,7 +48,7 @@ class ProductController extends Controller
             'slug' => 'required|string|max:255|unique:products,slug',
             'sku' => 'required|string|max:50|unique:products,sku',
             'description' => 'required',
-            'category_id' => 'required|exists:categories,id',
+            'category_id' => 'required|exists:product_categories,id',
             'price' => 'required|numeric|min:0',
             'stock' => 'required|integer|min:0',
             'image' => 'nullable|image|max:2048', // jika Anda ingin menyimpan gambar juga
@@ -81,8 +81,10 @@ class ProductController extends Controller
 
         // Jika ingin menyimpan gambar (opsional)
         if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('product-images', 'public');
-            $data['image'] = $imagePath;
+            $image = $request->file('image');
+            $imageName = time() . '_' . $image->getClientOriginalName();
+            $imagePath = $image->storeAs('uploads/products', $imageName, 'public');
+            $data['image'] = $imagePath; // tambahkan ke $data
         }
 
         Product::create($data);
@@ -120,20 +122,22 @@ class ProductController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required',
-            'sku' => 'required|string|max:50',
+            'slug' => 'required|string|max:255|unique:products,slug',
+            'sku' => 'required|string|max:50|unique:products,sku',
             'description' => 'required',
-            'category_id' => 'required',
-            'price' => 'required|numeric',
-            'stock' => 'required|integer',
+            'category_id' => 'required|exists:product_categories,id',
+            'price' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:0',
+            'image' => 'required|image|max:2048', // jika Anda ingin menyimpan gambar juga
         ], [
             'name.required' => 'Name harus diisi',
-            'sku.required' => 'SKU harus diisi',
+            'slug.required' => 'Slug harus diisi',
+            'sku.unique' => 'SKU sudah digunakan',
             'description.required' => 'Description harus diisi',
             'category_id.required' => 'Category harus diisi',
             'price.required' => 'Price harus diisi',
             'stock.required' => 'Stock harus diisi',
         ]);
-
         if ($validator->fails()) {
             return redirect()->back()->with(
                 [
@@ -146,12 +150,20 @@ class ProductController extends Controller
         $data = [
             'name' => $request->input('name'),
             'sku' => $request->input('sku'),
+            'slug' => $request->input('slug'),
             'image' => $request->input('image'),
             'description' => $request->input('description'),
             'category_id' => $request->input('category_id'),
             'price' => $request->input('price'),
             'stock' => $request->input('stock'),
         ];
+
+        if ($request->hasFile('image')) {
+            $image = $request->file('image');
+            $imageName = time() . '_' . $image->getClientOriginalName();
+            $imagePath = $image->storeAs('uploads/products', $imageName, 'public');
+            $data['image'] = $imagePath; // tambahkan ke $data
+        }
 
         Product::where('id', $id)->update($data);
 
