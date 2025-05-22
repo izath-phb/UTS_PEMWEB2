@@ -17,6 +17,10 @@
 
         <flux:input label="Name" name="name" class="mb-3" value="{{ $product->name }}" />
 
+        <flux:input label="Slug" name="slug" class="mb-3" :value="$category->slug" />
+
+        <flux:input label="SKU" name="sku" class="mb-3" :value="$category->sku" />
+
         <flux:textarea label="Description" name="description" class="mb-3">
             {{ $product->description }}
         </flux:textarea>
@@ -30,9 +34,11 @@
             @endforeach
         </flux:select>
 
-        <flux:input label="Price" name="price" class="mb-3" value="{{ $product->price }}" />
+        <flux:input label="Image URL" name="image_url" class="mb-3" :value="$category->image_url" />
 
-        <flux:input label="Stock" name="stock" class="mb-3" value="{{ $product->stock }}" />
+        <flux:input label="Price" name="price" class="mb-3" value="{{ $product->price }}" type="number" />
+
+        <flux:input label="Stock" name="stock" class="mb-3" value="{{ $product->stock }}" type="number" />
 
         <flux:separator />
 

@@ -14,16 +14,17 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $products = Product::query()
+        $products = Product::with('product_categories') // Eager load relasi category
             ->when($request->filled('q'), function ($query) use ($request) {
                 $query->where('name', 'like', '%' . $request->q . '%')
-                        ->orWhere('description', 'like', '%' . $request->q . '%');
+                    ->orWhere('description', 'like', '%' . $request->q . '%');
             })
             ->paginate(10);
-       return view('dashboard.products.index',[
-        'products' => $products,
-        'q' => $request->q
-    ]);
+
+        return view('dashboard.products.index', [
+            'products' => $products,
+            'q' => $request->q
+        ]);
     }
 
     /**
@@ -42,15 +43,19 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-
         $validator = Validator::make($request->all(), [
             'name' => 'required',
+            'slug' => 'required|string|max:255|unique:products,slug',
+            'sku' => 'required|string|max:50|unique:products,sku',
             'description' => 'required',
-            'category_id' => 'required',
-            'price' => 'required',
-            'stock' => 'required',
+            'category_id' => 'required|exists:categories,id',
+            'price' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:0',
+            'image' => 'nullable|image|max:2048', // jika Anda ingin menyimpan gambar juga
         ], [
             'name.required' => 'Name harus diisi',
+            'slug.required' => 'Slug harus diisi',
+            'sku.unique' => 'SKU sudah digunakan',
             'description.required' => 'Description harus diisi',
             'category_id.required' => 'Category harus diisi',
             'price.required' => 'Price harus diisi',
@@ -58,30 +63,33 @@ class ProductController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()->with(
-                [
-                    'errors'=>$validator->errors(),
-                    'errorMessage'=>'Validasi Error, Silahkan lengkapi data terlebih dahulu'
-                ]
-            );
+            return redirect()->back()->withInput()->with([
+                'errors' => $validator->errors(),
+                'errorMessage' => 'Validasi Error, Silahkan lengkapi data terlebih dahulu'
+            ]);
         }
-
 
         $data = [
             'name' => $request->input('name'),
+            'slug' => $request->input('slug'),
+            'sku' => $request->input('sku'),
             'description' => $request->input('description'),
             'category_id' => $request->input('category_id'),
             'price' => $request->input('price'),
             'stock' => $request->input('stock'),
         ];
 
+        // Jika ingin menyimpan gambar (opsional)
+        if ($request->hasFile('image')) {
+            $imagePath = $request->file('image')->store('product-images', 'public');
+            $data['image'] = $imagePath;
+        }
+
         Product::create($data);
-        
 
-        return redirect()->back()->with(['successMessage'=>'Data Berhasil Disimpan']);
-
-
+        return redirect()->back()->with(['successMessage' => 'Data Berhasil Disimpan']);
     }
+
 
     /**
      * Display the specified resource.
@@ -99,8 +107,8 @@ class ProductController extends Controller
         $product = Product::find($id);
         $categories = Categories::get();
 
-        return view('dashboard.products.edit',[
-            'product'=>$product,
+        return view('dashboard.products.edit', [
+            'product' => $product,
             'categories' => $categories
         ]);
     }
@@ -112,12 +120,14 @@ class ProductController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required',
+            'sku' => 'required|string|max:50',
             'description' => 'required',
             'category_id' => 'required',
-            'price' => 'required',
-            'stock' => 'required',
+            'price' => 'required|numeric',
+            'stock' => 'required|integer',
         ], [
             'name.required' => 'Name harus diisi',
+            'sku.required' => 'SKU harus diisi',
             'description.required' => 'Description harus diisi',
             'category_id.required' => 'Category harus diisi',
             'price.required' => 'Price harus diisi',
@@ -127,14 +137,16 @@ class ProductController extends Controller
         if ($validator->fails()) {
             return redirect()->back()->with(
                 [
-                    'errors'=>$validator->errors(),
-                    'errorMessage'=>'Validasi Error, Silahkan lengkapi data terlebih dahulu'
+                    'errors' => $validator->errors(),
+                    'errorMessage' => 'Validasi Error, Silahkan lengkapi data terlebih dahulu'
                 ]
             );
         }
 
         $data = [
             'name' => $request->input('name'),
+            'sku' => $request->input('sku'),
+            'image' => $request->input('image'),
             'description' => $request->input('description'),
             'category_id' => $request->input('category_id'),
             'price' => $request->input('price'),
@@ -142,9 +154,9 @@ class ProductController extends Controller
         ];
 
         Product::where('id', $id)->update($data);
-        
 
-        return redirect()->back()->with(['successMessage'=>'Data Berhasil Disimpan']);
+
+        return redirect()->back()->with(['successMessage' => 'Data Berhasil Disimpan']);
     }
 
     /**
@@ -159,7 +171,7 @@ class ProductController extends Controller
         return redirect()->back()
             ->with(
                 [
-                    'successMessage'=>'Data Berhasil Dihapus'
+                    'successMessage' => 'Data Berhasil Dihapus'
                 ]
             );
     }
